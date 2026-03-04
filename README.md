@@ -1,31 +1,89 @@
-# mica-search-opensearch
+# mica-search-os2
 
 [Mica](https://github.com/obiba/mica2) is OBiBa's web data portal application server.
 
-mica-search-opensearch is Mica's search plugin for OpenSearch 2.x servers. It is a drop-in replacement for `mica-search-es8`, compatible with Mica >= 6.0.
+`mica-search-os2` is Mica's search plugin for OpenSearch 2.x. It is a drop-in replacement for `mica-search-es8`, compatible with Mica >= 6.0.
+
+## Installation
+
+### 1. Configure Mica to use this plugin
+
+In Mica's `application-prod.yml`, set:
+
+```yaml
+plugins:
+  micaSearchPlugin: mica-search-os2
+```
+
+This tells Mica which search plugin to load. Without this setting, Mica will not use the plugin.
+
+### 2. Configure the plugin
+
+Edit `$MICA_HOME/plugins/mica-search-os2-<version>/plugin.properties` and set the OpenSearch cluster address:
+
+```properties
+# Comma-separated list of OpenSearch nodes (host:port). Default is localhost:9200.
+transportAddresses=localhost:9200
+```
+
+### 3. Configure index settings (optional)
+
+The plugin reads `$MICA_HOME/plugins/mica-search-os2-<version>/opensearch.yml` for index-level settings such as custom analyzers. Only `index:` settings are relevant here — node and discovery settings are not applicable since the plugin connects to an external cluster over HTTP.
+
+Example `opensearch.yml`:
+
+```yaml
+index:
+  max_ngram_diff: 18
+  max_result_window: 1000000
+  analysis:
+    analyzer:
+      mica_index_analyzer:
+        type: custom
+        char_filter: [html_strip]
+        tokenizer: mica_char_group_tokenizer
+        filter: [lowercase, mica_asciifolding_filter, mica_nGram_filter]
+      mica_search_analyzer:
+        type: custom
+        char_filter: [html_strip]
+        tokenizer: mica_char_group_tokenizer
+        filter: [lowercase, mica_asciifolding_filter]
+    filter:
+      mica_asciifolding_filter:
+        type: asciifolding
+        preserve_original: true
+      mica_nGram_filter:
+        type: ngram
+        min_gram: 2
+        max_gram: 20
+    tokenizer:
+      mica_char_group_tokenizer:
+        type: char_group
+        tokenize_on_chars: ["whitespace", "-", "_"]
+```
+
+---
 
 ## Testing with Docker
 
 The fastest way to get a local OpenSearch node for testing is via Docker.
 
-### Run OpenSearch with Docker
+### Run OpenSearch
 
 ```bash
 docker run -d \
   --name opensearch \
   -p 9200:9200 \
-  -p 9600:9600 \
   -e "discovery.type=single-node" \
   -e "DISABLE_SECURITY_PLUGIN=true" \
   opensearchproject/opensearch:2.19.0
 ```
 
-- Port `9200` — REST API (used by this plugin)
-- Port `9600` — Performance Analyzer (optional)
-- `discovery.type=single-node` — required for a single-node cluster
-- `DISABLE_SECURITY_PLUGIN=true` — disables TLS and auth, suitable for local testing only
+- Port `9200` — REST API used by the plugin
+- `discovery.type=single-node` — required for a single-node setup
+- `DISABLE_SECURITY_PLUGIN=true` — disables TLS and authentication, suitable for local testing only
 
-Wait a few seconds for OpenSearch to start, then verify it is up:
+Verify OpenSearch is up:
 
 ```bash
 curl http://localhost:9200
@@ -39,9 +97,7 @@ You should see a JSON response with `"cluster_name"` and `"version"` fields.
 docker stop opensearch && docker rm opensearch
 ```
 
-### Persisting data between restarts (optional)
-
-If you want index data to survive container restarts, mount a volume:
+### Persist data between restarts (optional)
 
 ```bash
 docker run -d \
@@ -51,15 +107,6 @@ docker run -d \
   -e "DISABLE_SECURITY_PLUGIN=true" \
   -v opensearch-data:/usr/share/opensearch/data \
   opensearchproject/opensearch:2.19.0
-```
-
-### Configure Mica to use this instance
-
-Point the plugin at your local OpenSearch node by setting the following in Mica's configuration:
-
-```
-opensearch.host=localhost
-opensearch.port=9200
 ```
 
 ---
