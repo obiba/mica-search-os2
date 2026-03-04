@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
-import co.elastic.clients.elasticsearch.core.search.Hit;
+import org.opensearch.client.opensearch.core.search.Hit;
 
 import java.util.Iterator;
 import java.util.Map;

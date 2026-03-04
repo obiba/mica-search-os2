@@ -10,19 +10,13 @@
 
 package org.obiba.es.mica.query;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.TermRangeQuery;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import net.jazdw.rql.parser.ASTNode;
 import net.jazdw.rql.parser.RQLParser;
 import net.jazdw.rql.parser.SimpleASTVisitor;
-import org.elasticsearch.search.sort.FieldSortBuilder;
-import org.elasticsearch.search.sort.SortBuilder;
-import org.elasticsearch.search.sort.SortBuilders;
-import org.elasticsearch.search.sort.SortOrder;
-import org.obiba.es.mica.ESQuery;
+import org.obiba.es.mica.OSQuery;
 import org.obiba.mica.spi.search.rql.RQLFieldResolver;
 import org.obiba.mica.spi.search.rql.RQLNode;
 import org.obiba.mica.spi.search.support.AttributeKey;
@@ -30,24 +24,24 @@ import org.obiba.opal.core.domain.taxonomy.Taxonomy;
 import org.obiba.opal.core.domain.taxonomy.TaxonomyEntity;
 import org.obiba.opal.core.domain.taxonomy.Vocabulary;
 
-import co.elastic.clients.elasticsearch._types.FieldValue;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.ExistsQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryStringQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.TermQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.TermsQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.TermsQueryField;
-import co.elastic.clients.elasticsearch._types.query_dsl.WildcardQuery;
-import co.elastic.clients.json.JsonData;
+import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.query_dsl.BoolQuery;
+import org.opensearch.client.opensearch._types.query_dsl.ExistsQuery;
+import org.opensearch.client.opensearch._types.query_dsl.MatchAllQuery;
+import org.opensearch.client.opensearch._types.query_dsl.Query;
+import org.opensearch.client.opensearch._types.query_dsl.QueryStringQuery;
+import org.opensearch.client.opensearch._types.query_dsl.RangeQuery;
+import org.opensearch.client.opensearch._types.query_dsl.TermQuery;
+import org.opensearch.client.opensearch._types.query_dsl.TermsQuery;
+import org.opensearch.client.opensearch._types.query_dsl.TermsQueryField;
+import org.opensearch.client.opensearch._types.query_dsl.WildcardQuery;
+import org.opensearch.client.json.JsonData;
 
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class RQLQuery implements ESQuery {
+public class RQLQuery implements OSQuery {
 
   private final RQLFieldResolver rqlFieldResolver;
 
@@ -61,7 +55,7 @@ public class RQLQuery implements ESQuery {
 
   private Query queryBuilder;
 
-  private List<SortBuilder> sortBuilders = Lists.newArrayList();
+  private List<Map.Entry<String, String>> sortBuilders = Lists.newArrayList();
 
   private List<String> aggregations = Lists.newArrayList();
 
@@ -162,7 +156,7 @@ public class RQLQuery implements ESQuery {
   }
 
   @Override
-  public List<SortBuilder> getSortBuilders() {
+  public List<Map.Entry<String, String>> getSortBuilders() {
     return sortBuilders;
   }
 
@@ -245,7 +239,8 @@ public class RQLQuery implements ESQuery {
   private void parseSort(ASTNode node) {
     this.node = node;
     RQLSortBuilder sort = new RQLSortBuilder(rqlFieldResolver);
-    sortBuilders = node.accept(sort);
+    List<Map.Entry<String, String>> result = node.accept(sort);
+    if (result != null) sortBuilders = result;
   }
 
   private void parseAggregate(ASTNode node) {
@@ -411,7 +406,7 @@ public class RQLQuery implements ESQuery {
       visitField(field, terms);
 
       BoolQuery.Builder builder = new BoolQuery.Builder();
-      terms.forEach(t -> builder.must(TermQuery.of(q -> q.field(field).value(t))._toQuery()));
+      terms.forEach(t -> builder.must(TermQuery.of(q -> q.field(field).value(FieldValue.of(t)))._toQuery()));
       return builder.build()._toQuery();
     }
 
@@ -455,15 +450,15 @@ public class RQLQuery implements ESQuery {
         if (!"*".equals(values[0]) || !"*".equals(values[1])) {
           if ("*".equals(values[0])) {
             rangeQuery = Query.of(q -> q
-              .range(r -> r.term(TermRangeQuery.of(t -> t.field(data.getField()).lt(values[1]))))
+              .range(RangeQuery.of(r -> r.field(data.getField()).lt(JsonData.of(values[1]))))
             );
           } else if ("*".equals(values[1])) {
             rangeQuery = Query.of(q -> q
-              .range(r -> r.term(TermRangeQuery.of(t -> t.field(data.getField()).gte(values[0]))))
+              .range(RangeQuery.of(r -> r.field(data.getField()).gte(JsonData.of(values[0]))))
             );
           } else {
             rangeQuery = Query.of(q -> q
-              .range(r -> r.term(TermRangeQuery.of(t -> t.field(data.getField()).gte(values[0]).lt(values[1]))))
+              .range(RangeQuery.of(r -> r.field(data.getField()).gte(JsonData.of(values[0])).lt(JsonData.of(values[1]))))
             );
           }
         }
@@ -506,7 +501,7 @@ public class RQLQuery implements ESQuery {
       Object term = node.getArgument(1);
       visitField(field, Collections.singleton(term.toString()));
 
-      return TermQuery.of(q -> q.field(field).value(term.toString()))._toQuery();
+      return TermQuery.of(q -> q.field(field).value(FieldValue.of(term.toString())))._toQuery();
     }
 
     private Query visitLe(ASTNode node) {
@@ -515,7 +510,7 @@ public class RQLQuery implements ESQuery {
       visitField(field);
 
       return Query.of(q -> q
-        .range(r -> r.term(TermRangeQuery.of(t -> t.field(field).lte(value.toString()))))
+        .range(RangeQuery.of(r -> r.field(field).lte(JsonData.of(value.toString()))))
       );
     }
 
@@ -525,7 +520,7 @@ public class RQLQuery implements ESQuery {
       visitField(field);
 
       return Query.of(q -> q
-        .range(r -> r.term(TermRangeQuery.of(t -> t.field(field).lt(value.toString()))))
+        .range(RangeQuery.of(r -> r.field(field).lt(JsonData.of(value.toString()))))
       );
     }
 
@@ -535,7 +530,7 @@ public class RQLQuery implements ESQuery {
       visitField(field);
 
       return Query.of(q -> q
-        .range(r -> r.term(TermRangeQuery.of(t -> t.field(field).gte(value.toString()))))
+        .range(RangeQuery.of(r -> r.field(field).gte(JsonData.of(value.toString()))))
       );
     }
 
@@ -545,7 +540,7 @@ public class RQLQuery implements ESQuery {
       visitField(field);
 
       return Query.of(q -> q
-        .range(r -> r.term(TermRangeQuery.of(t -> t.field(field).gt(value.toString()))))
+        .range(RangeQuery.of(r -> r.field(field).gt(JsonData.of(value.toString()))))
       );
     }
 
@@ -555,7 +550,7 @@ public class RQLQuery implements ESQuery {
       ArrayList<Object> values = (ArrayList<Object>) node.getArgument(1);
 
       return Query.of(q -> q
-        .range(r -> r.term(TermRangeQuery.of(t -> t.field(field).gte(values.get(0).toString()).lte(values.get(1).toString()))))
+        .range(RangeQuery.of(r -> r.field(field).gte(JsonData.of(values.get(0).toString())).lte(JsonData.of(values.get(1).toString()))))
       );
     }
 
@@ -725,30 +720,25 @@ public class RQLQuery implements ESQuery {
     }
   }
 
-  private class RQLSortBuilder extends RQLBuilder<List<SortBuilder>> {
+  private class RQLSortBuilder extends RQLBuilder<List<Map.Entry<String, String>>> {
     RQLSortBuilder(RQLFieldResolver rqlFieldResolver) {
       super(rqlFieldResolver);
     }
 
     @Override
-    public List<SortBuilder> visit(ASTNode node) {
+    public List<Map.Entry<String, String>> visit(ASTNode node) {
       try {
         RQLNode type = RQLNode.getType(node.getName());
         switch (type) {
           case SORT:
-            List<SortBuilder> sortBuilders = Lists.newArrayList();
+            List<Map.Entry<String, String>> sorts = Lists.newArrayList();
             if (node.getArgumentsSize() >= 1) {
               for (int i = 0; i < node.getArgumentsSize(); i++) {
                 String sortKey = node.getArgument(i).toString();
-                SortBuilder sortBuilder = processArgument(sortKey);
-                if (!"_score".equals(((FieldSortBuilder) sortBuilder).getFieldName())) {
-                  ((FieldSortBuilder) sortBuilder).unmappedType("string");
-                  ((FieldSortBuilder) sortBuilder).missing("_last");
-                }
-                sortBuilders.add(sortBuilder);
+                sorts.add(processArgument(sortKey));
               }
             }
-            return sortBuilders;
+            return sorts;
         }
       } catch (IllegalArgumentException e) {
         // ignore
@@ -756,13 +746,13 @@ public class RQLQuery implements ESQuery {
       return null;
     }
 
-    private SortBuilder processArgument(String arg) {
+    private Map.Entry<String, String> processArgument(String arg) {
       if (arg.startsWith("-"))
-        return SortBuilders.fieldSort(resolveFieldUnanalyzed(arg.substring(1)).getField()).order(SortOrder.DESC);
+        return Map.entry(resolveFieldUnanalyzed(arg.substring(1)).getField(), "Desc");
       else if (arg.startsWith("+"))
-        return SortBuilders.fieldSort(resolveFieldUnanalyzed(arg.substring(1)).getField()).order(SortOrder.ASC);
+        return Map.entry(resolveFieldUnanalyzed(arg.substring(1)).getField(), "Asc");
       else
-        return SortBuilders.fieldSort(resolveFieldUnanalyzed(arg).getField()).order(SortOrder.ASC);
+        return Map.entry(resolveFieldUnanalyzed(arg).getField(), "Asc");
     }
 
   }

@@ -10,8 +10,8 @@
 
 package org.obiba.es.mica.results;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.StatsAggregate;
+import org.opensearch.client.opensearch._types.aggregations.Aggregate;
+import org.opensearch.client.opensearch._types.aggregations.StatsAggregate;
 
 import org.obiba.mica.spi.search.Searcher;
 

@@ -11,10 +11,8 @@
 package org.obiba.es.mica.mapping;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
+
+
 import org.obiba.mica.spi.search.ConfigurationProvider;
 import org.obiba.mica.spi.search.Indexer;
 import org.obiba.mica.spi.search.SearchEngineService;
@@ -23,10 +21,7 @@ import org.obiba.opal.core.domain.taxonomy.Taxonomy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
-
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.List;
 
 public class NetworkIndexConfiguration extends AbstractIndexConfiguration {
@@ -41,20 +36,17 @@ public class NetworkIndexConfiguration extends AbstractIndexConfiguration {
     if (Indexer.DRAFT_NETWORK_INDEX.equals(indexName) ||
         Indexer.PUBLISHED_NETWORK_INDEX.equals(indexName)) {
       try {
-        XContentBuilder properties = createMappingProperties();
+        MappingBuilder properties = createMappingProperties();
 
-        getClient(searchEngineService)
-            .indices()
-            .putMapping(
-                PutMappingRequest.of(r -> r.index(indexName).withJson(new StringReader(Strings.toString(properties)))));
+        putMappingJson(getRestClient(searchEngineService), indexName, properties.toString());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  private XContentBuilder createMappingProperties() throws IOException {
-    XContentBuilder mapping = XContentFactory.jsonBuilder().startObject();
+  private MappingBuilder createMappingProperties() throws IOException {
+    MappingBuilder mapping = MappingBuilder.jsonBuilder().startObject();
 
     mapping.startObject("properties");
     Taxonomy taxonomy = getTaxonomy();

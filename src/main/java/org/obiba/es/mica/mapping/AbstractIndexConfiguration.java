@@ -11,6 +11,7 @@
 package org.obiba.es.mica.mapping;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +19,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.XContentBuilder;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.obiba.es.mica.ESSearchEngineService;
 import org.obiba.mica.spi.search.ConfigurationProvider;
 import org.obiba.mica.spi.search.Indexer;
@@ -30,10 +31,13 @@ import org.obiba.opal.core.domain.taxonomy.Vocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import org.opensearch.client.Request;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.opensearch.OpenSearchClient;
 
 public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigurationListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractIndexConfiguration.class);
@@ -52,8 +56,18 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     this.configurationProvider = configurationProvider;
   }
 
-  protected ElasticsearchClient getClient(SearchEngineService searchEngineService) {
+  protected OpenSearchClient getClient(SearchEngineService searchEngineService) {
     return ((ESSearchEngineService) searchEngineService).getClient();
+  }
+
+  protected RestClient getRestClient(SearchEngineService searchEngineService) {
+    return ((ESSearchEngineService) searchEngineService).getRestClient();
+  }
+
+  protected void putMappingJson(RestClient restClient, String indexName, String mappingJson) throws IOException {
+    Request request = new Request("PUT", "/" + indexName + "/_mapping");
+    request.setEntity(new StringEntity(mappingJson, ContentType.APPLICATION_JSON));
+    restClient.performRequest(request);
   }
 
   protected Taxonomy getTaxonomy() {
@@ -89,7 +103,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     });
   }
 
-  protected void createLocalizedMappingWithAnalyzers(XContentBuilder mapping, String name) {
+  protected void createLocalizedMappingWithAnalyzers(MappingBuilder mapping, String name) {
     try {
       mapping.startObject(name);
       mapping.startObject("properties");
@@ -110,11 +124,11 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     }
   }
 
-  protected void createMappingWithoutAnalyzer(XContentBuilder mapping, String name) {
+  protected void createMappingWithoutAnalyzer(MappingBuilder mapping, String name) {
     createMappingWithoutAnalyzer(mapping, name, null);
   }
 
-  protected void createMappingWithoutAnalyzer(XContentBuilder mapping, String name, String type) {
+  protected void createMappingWithoutAnalyzer(MappingBuilder mapping, String name, String type) {
     try {
       mapping.startObject(name).field("type", resolveType(type)).endObject();
     } catch (IOException e) {
@@ -122,7 +136,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     }
   }
 
-  protected void createMappingWithAndWithoutAnalyzer(XContentBuilder mapping, String name) {
+  protected void createMappingWithAndWithoutAnalyzer(MappingBuilder mapping, String name) {
     try {
       mapping.startObject(name);
       createMappingWithAnalyzers(mapping, name);
@@ -132,7 +146,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     }
   }
 
-  protected void createMappingWithAnalyzers(XContentBuilder mapping, String name) throws IOException {
+  protected void createMappingWithAnalyzers(MappingBuilder mapping, String name) throws IOException {
     mapping
         .field("type", "keyword")
         .startObject("fields")
@@ -145,16 +159,16 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
         .endObject();
   }
 
-  protected void appendMembershipProperties(XContentBuilder mapping) throws IOException {
-    XContentBuilder membershipsMapping = mapping.startObject("memberships").startObject("properties");
+  protected void appendMembershipProperties(MappingBuilder mapping) throws IOException {
+    MappingBuilder membershipsMapping = mapping.startObject("memberships").startObject("properties");
     for (String role : configurationProvider.getRoles()) {
-      XContentBuilder personMapping = membershipsMapping.startObject(role).startObject("properties") //
+      MappingBuilder personMapping = membershipsMapping.startObject(role).startObject("properties") //
           .startObject("person").startObject("properties");
       createMappingWithAndWithoutAnalyzer(personMapping, "lastName");
       createMappingWithAndWithoutAnalyzer(personMapping, "fullName");
       createMappingWithAndWithoutAnalyzer(personMapping, "email");
 
-      XContentBuilder institutionMapping = personMapping.startObject("institution").startObject("properties");
+      MappingBuilder institutionMapping = personMapping.startObject("institution").startObject("properties");
       createLocalizedMappingWithAnalyzers(institutionMapping, "name");
       institutionMapping.endObject().endObject();
 
@@ -164,11 +178,11 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     membershipsMapping.endObject().endObject(); // memberships
   }
 
-  protected void startDynamicTemplate(XContentBuilder mapping) throws IOException {
+  protected void startDynamicTemplate(MappingBuilder mapping) throws IOException {
     mapping.startArray("dynamic_templates").startObject();
   }
 
-  protected void dynamicTemplateExcludeFieldFromSearch(XContentBuilder mapping,
+  protected void dynamicTemplateExcludeFieldFromSearch(MappingBuilder mapping,
       String name,
       String pattern) throws IOException {
     mapping.startObject(name)
@@ -176,11 +190,11 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
         .endObject();
   }
 
-  protected void endDynamicTemplate(XContentBuilder mapping) throws IOException {
+  protected void endDynamicTemplate(MappingBuilder mapping) throws IOException {
     mapping.endObject().endArray();
   }
 
-  private void createSchemaMapping(XContentBuilder mapping, SchemaNode schema) throws IOException {
+  private void createSchemaMapping(MappingBuilder mapping, SchemaNode schema) throws IOException {
     for (SchemaNode node : schema.getChildren()) {
       if (node.getVocabulary() != null) {
         Vocabulary v = node.getVocabulary();
@@ -228,7 +242,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
         path.subList(1, path.size()), vocabulary);
   }
 
-  protected void addTaxonomyFields(XContentBuilder mapping, Taxonomy taxonomy, List<String> ignore) throws IOException {
+  protected void addTaxonomyFields(MappingBuilder mapping, Taxonomy taxonomy, List<String> ignore) throws IOException {
     if (getTarget() != null) {
       SchemaNode root = new SchemaNode();
       taxonomy.getVocabularies().forEach(v -> {

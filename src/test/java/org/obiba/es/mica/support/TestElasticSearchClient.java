@@ -12,8 +12,8 @@
 //
 // import org.elasticsearch.action.search.SearchRequestBuilder;
 // import org.elasticsearch.action.search.SearchType;
-// import org.elasticsearch.client.Client;
-// import org.elasticsearch.index.query.QueryBuilder;
+// import org.opensearch.client.Client;
+// import org.opensearch.index.query.QueryBuilder;
 // import org.junit.Ignore;
 // import org.obiba.core.util.FileUtil;
 //

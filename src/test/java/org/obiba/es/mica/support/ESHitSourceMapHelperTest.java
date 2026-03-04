@@ -16,7 +16,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import co.elastic.clients.json.JsonData;
+import org.opensearch.client.json.JsonData;
 
 import java.util.HashMap;
 import java.util.Map;

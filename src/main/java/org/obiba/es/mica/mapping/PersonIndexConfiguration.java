@@ -10,19 +10,15 @@
 
 package org.obiba.es.mica.mapping;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
+
+
 import org.obiba.mica.spi.search.ConfigurationProvider;
 import org.obiba.mica.spi.search.Indexer;
 import org.obiba.mica.spi.search.SearchEngineService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
-
 import java.io.IOException;
-import java.io.StringReader;
 
 public class PersonIndexConfiguration extends AbstractIndexConfiguration {
   private static final Logger log = LoggerFactory.getLogger(PersonIndexConfiguration.class);
@@ -35,20 +31,16 @@ public class PersonIndexConfiguration extends AbstractIndexConfiguration {
   public void onIndexCreated(SearchEngineService searchEngineService, String indexName) {
     if (Indexer.PERSON_INDEX.equals(indexName)) {
       try {
-        XContentBuilder properties = createMappingProperties(Indexer.PERSON_TYPE);
-
-        getClient(searchEngineService)
-            .indices()
-            .putMapping(
-                PutMappingRequest.of(r -> r.index(indexName).withJson(new StringReader(Strings.toString(properties)))));
+        MappingBuilder properties = createMappingProperties(Indexer.PERSON_TYPE);
+        putMappingJson(getRestClient(searchEngineService), indexName, properties.toString());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  private XContentBuilder createMappingProperties(String type) throws IOException {
-    XContentBuilder mapping = XContentFactory.jsonBuilder().startObject();
+  private MappingBuilder createMappingProperties(String type) throws IOException {
+    MappingBuilder mapping = MappingBuilder.jsonBuilder().startObject();
     mapping.startObject("properties");
     mapping.startObject("id").field("type", "keyword").endObject();
     mapping.startObject("studyMemberships").startObject("properties");

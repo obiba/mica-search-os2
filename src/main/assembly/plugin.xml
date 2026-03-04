@@ -47,25 +47,13 @@
           org.obiba.es:*
         </include>
         <include>
-          org.elasticsearch:*
-        </include>
-        <include>
-          org.elasticsearch.client:*
-        </include>
-        <include>
-          org.elasticsearch.plugin:*
-        </include>
-        <include>
-          org.apache.lucene:*
-        </include>
-        <include>
-          org.apache.logging.log4j:*
+          org.opensearch.client:*
         </include>
         <include>
           org.apache.httpcomponents:*
         </include>
         <include>
-          org.yaml:*
+          org.apache.httpcomponents.client5:*
         </include>
         <include>
           com.fasterxml.jackson.core:*
@@ -74,25 +62,13 @@
           com.fasterxml.jackson.dataformat:*
         </include>
         <include>
-          com.tdunning:*
-        </include>
-        <include>
-          com.carrotsearch:*
-        </include>
-        <include>
-          net.java.dev.jna:*
-        </include>
-        <include>
-          co.elastic.clients:*
-        </include>
-        <include>
           jakarta.json:*
         </include>
         <include>
           org.eclipse.parsson:*
         </include>
         <include>
-          io.opentelemetry:*
+          org.reactivestreams:*
         </include>
       </includes>
     </dependencySet>

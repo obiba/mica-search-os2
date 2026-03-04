@@ -12,7 +12,6 @@ package org.obiba.es.mica.query;
 
 import net.jazdw.rql.parser.ASTNode;
 import net.jazdw.rql.parser.RQLParser;
-import org.elasticsearch.common.Strings;
 import org.obiba.mica.spi.search.ConfigurationProvider;
 import org.obiba.mica.spi.search.IndexFieldMapping;
 import org.obiba.mica.spi.search.Indexer;
@@ -22,6 +21,8 @@ import org.obiba.mica.spi.search.support.EmptyQuery;
 import org.obiba.mica.spi.search.support.JoinQuery;
 import org.obiba.mica.spi.search.support.Query;
 import org.obiba.opal.core.domain.taxonomy.Taxonomy;
+
+import com.google.common.base.Strings;
 
 import java.util.ArrayList;
 import java.util.Collections;

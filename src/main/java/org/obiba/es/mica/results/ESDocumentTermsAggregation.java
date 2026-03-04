@@ -10,10 +10,9 @@
 
 package org.obiba.es.mica.results;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
+import org.opensearch.client.opensearch._types.aggregations.Aggregate;
+import org.opensearch.client.opensearch._types.aggregations.StringTermsAggregate;
 
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.obiba.mica.spi.search.Searcher;
 
 import java.util.List;

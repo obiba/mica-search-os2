@@ -10,7 +10,7 @@
 
 package org.obiba.es.mica.results;
 
-import co.elastic.clients.elasticsearch.core.CountResponse;
+import org.opensearch.client.opensearch.core.CountResponse;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.obiba.mica.spi.search.Searcher;

@@ -10,23 +10,20 @@
 
 package org.obiba.es.mica;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
+import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.transport.rest_client.RestClientTransport;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import net.minidev.json.JSONObject;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpHost;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.xcontent.XContentType;
+import org.opensearch.client.RestClient;
 import org.obiba.es.mica.mapping.DatasetIndexConfiguration;
 import org.obiba.es.mica.mapping.FileIndexConfiguration;
 import org.obiba.es.mica.mapping.NetworkIndexConfiguration;
@@ -48,11 +45,10 @@ import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -61,21 +57,17 @@ import static java.util.stream.Collectors.toList;
 public class ESSearchEngineService implements SearchEngineService {
   private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-  private static final String ES_BRANCH = "8.13.x";
-
-  private static final String ES_CONFIG_FILE = "elasticsearch.yml";
+  private static final String OPENSEARCH_CONFIG_FILE = "opensearch.yml";
 
   private static final int DEFAULT_MAX_RETIRES = 10;
-  private static final int DEFAULT_INITIAL_BACKOFF = 1000; // Miliseconds
+  private static final int DEFAULT_INITIAL_BACKOFF = 1000; // Milliseconds
   private static final int DEFAULT_BACKOFF_MULTIPLIER = 2;
 
   private Properties properties;
 
   private boolean running;
 
-  private Node esNode;
-
-  private ElasticsearchClient client;
+  private OpenSearchClient client;
 
   private ESIndexer esIndexer;
 
@@ -89,11 +81,11 @@ public class ESSearchEngineService implements SearchEngineService {
 
   private ObjectMapper yamlObjectMapper = new ObjectMapper(new YAMLFactory());
 
-  private final AtomicBoolean stopRetries = new AtomicBoolean(false); // Flag to stop retries
+  private final AtomicBoolean stopRetries = new AtomicBoolean(false);
 
   @Override
   public String getName() {
-    return "mica-search-es8";
+    return "mica-search-os2";
   }
 
   @Override
@@ -111,45 +103,56 @@ public class ESSearchEngineService implements SearchEngineService {
     return running;
   }
 
-
   public ESSearchEngineService() {
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      // Shutdown detected. Stopping Elasticsearch connection retries
       stopRetries.set(true);
     }));
   }
 
   @Override
   public void start() {
-    // do init stuff
-    if (properties != null) {
-      Settings.Builder builder = getSettings();
-      createTransportClient(builder);
-
-      String bufferLimitBytes = builder.build().get("http.max_content_length_bytes");
-
-      esIndexer = new ESIndexer(this);
-      esSearcher = new ESSearcher(this, bufferLimitBytes == null || bufferLimitBytes.isEmpty() ? 250 * 1024 * 1024
-        : Integer.parseInt(bufferLimitBytes));
-
-      running = true;
+    log.info("Starting mica-search-os2 plugin...");
+    if (properties == null) {
+      log.error("Plugin properties are null - plugin was not configured. Check that plugin.properties is present in the plugin directory.");
+      return;
     }
+    // JsonpUtils has a static initializer that calls JsonProvider.provider() via ServiceLoader.
+    // In a plugin classloader environment, ServiceLoader uses the thread context classloader,
+    // which is Mica's classloader and cannot see parsson in our lib/.
+    // Fix: set the plugin classloader as the context classloader before triggering JsonpUtils
+    // static init, so ServiceLoader can find parsson. This must happen before any OpenSearch
+    // client code runs.
+    ClassLoader pluginCl = getClass().getClassLoader();
+    ClassLoader prevCl = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(pluginCl);
+      pluginCl.loadClass("org.opensearch.client.json.JsonpUtils");
+      log.info("JsonpUtils initialized successfully with plugin classloader.");
+    } catch (Exception e) {
+      log.warn("Could not pre-initialize JsonpUtils: {}", e.getMessage());
+    } finally {
+      Thread.currentThread().setContextClassLoader(prevCl);
+    }
+
+
+    loadIndexSettings();
+    createTransportClient();
+
+    esIndexer = new ESIndexer(this);
+    esSearcher = new ESSearcher(this, 250 * 1024 * 1024);
+
+    running = true;
+    log.info("mica-search-os2 plugin started, waiting for OpenSearch connection...");
   }
+
+
 
   @Override
   public void stop() {
     running = false;
-    if (esNode != null) {
-      try {
-        esNode.close();
-      } catch (IOException e) {
-        log.error("Failed to close node {}", e.getMessage());
-      }
-    }
     if (client != null) {
       client.shutdown();
     }
-    esNode = null;
     client = null;
   }
 
@@ -168,8 +171,42 @@ public class ESSearchEngineService implements SearchEngineService {
     return esSearcher;
   }
 
-  public ElasticsearchClient getClient() {
+  public OpenSearchClient getClient() {
     return client;
+  }
+
+  /**
+   * Executes the given callable with the plugin classloader set as the thread context classloader.
+   * This is required because OpenSearch client's JsonpUtils uses ServiceLoader with the thread
+   * context classloader, which on external threads (Jetty, Spring) is Mica's classloader and
+   * cannot find parsson from the plugin's lib/.
+   */
+  <T> T withPluginClassLoader(java.util.concurrent.Callable<T> callable) {
+    ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+    try {
+      return callable.call();
+    } catch (RuntimeException | Error e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
+  }
+
+  void withPluginClassLoader(Runnable runnable) {
+    ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+    try {
+      runnable.run();
+    } finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
+  }
+
+  public org.opensearch.client.RestClient getRestClient() {
+    return ((org.opensearch.client.transport.rest_client.RestClientTransport) client._transport()).restClient();
   }
 
   ConfigurationProvider getConfigurationProvider() {
@@ -213,20 +250,17 @@ public class ESSearchEngineService implements SearchEngineService {
   // Private methods
   //
 
-  public void createTransportClient(Settings.Builder builder) {
-    builder.put("client.transport.sniff", isTransportSniff());
-
+  public void createTransportClient() {
     int maxRetries = getIntProperty("maxRetries", DEFAULT_MAX_RETIRES);
     long initialBackoffMs = getIntProperty("initialBackoff", DEFAULT_INITIAL_BACKOFF);
     int backoffMultiplier = getIntProperty("backoffMultiplier", DEFAULT_BACKOFF_MULTIPLIER);
 
-    // Make sure app is not blocked
     Thread.ofVirtual().start(() -> retryConnection(maxRetries, initialBackoffMs, backoffMultiplier));
   }
 
   private HttpHost[] getHttpHosts() {
     List<String> transportAddresses = getTransportAddresses();
-    HttpHost[] httpHosts = transportAddresses.stream()
+    return transportAddresses.stream()
       .map(transportAddress -> {
         int port = 9200;
         String host = transportAddress;
@@ -240,89 +274,70 @@ public class ESSearchEngineService implements SearchEngineService {
         return new HttpHost(host, port, "http");
       })
       .toArray(HttpHost[]::new);
-    return httpHosts;
   }
 
   private void retryConnection(int maxRetries, long initialBackoffMs, int backoffMultiplier) {
-    try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      executor.submit(() -> {
-        HttpHost[] httpHosts = getHttpHosts();
-        int attempt = 0;
-        long backoff = initialBackoffMs;
+    // Ensure the plugin classloader is the context classloader so that ServiceLoader
+    // (used by JsonpUtils static init to find jakarta.json.spi.JsonProvider) can find parsson.
+    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+    HttpHost[] httpHosts = getHttpHosts();
+    log.info("Connecting to OpenSearch at {}...", Arrays.toString(httpHosts));
 
-        while (attempt < maxRetries && !stopRetries.get()) {
+    int attempt = 0;
+    long backoff = initialBackoffMs;
+
+    while (attempt < maxRetries && !stopRetries.get()) {
+      try {
+        RestClient restClient = RestClient.builder(httpHosts).build();
+        RestClientTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+        client = new OpenSearchClient(transport);
+
+        if (client.ping().value()) {
+          log.info("Connected to OpenSearch successfully!");
+          return;
+        }
+
+        throw new IOException("Ping failed - OpenSearch might not be ready");
+
+      } catch (IOException e) {
+        attempt++;
+        log.warn("Attempt {}/{} failed: {}", attempt, maxRetries, e.getMessage());
+
+        if (!isRetryableException(e)) {
+          log.error("Non-retryable error detected, stopping connection attempts.", e);
+          break;
+        }
+
+        if (attempt < maxRetries && !stopRetries.get()) {
           try {
-            RestClient restClient = RestClient.builder(httpHosts).build();
-            RestClientTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
-            client = new ElasticsearchClient(transport);
-
-            if (client.ping().value()) {
-              log.info("Connected to Elasticsearch successfully!");
-              return;
-            }
-
-            throw new IOException("Ping failed - Elasticsearch might not be ready");
-
-          } catch (IOException e) {
-            attempt++;
-            log.warn("Attempt {}/{} failed: {}", attempt, maxRetries, e.getMessage());
-
-            if (!isRetryableException(e)) {
-              log.error("Non-retryable error detected, stopping connection attempts.", e);
-              break;
-            }
-
-            if (attempt < maxRetries && !stopRetries.get()) {
-              try {
-                long nextDelay = backoff;
-                log.info("Retrying in {}ms...", nextDelay);
-                Thread.sleep(nextDelay);
-                backoff *= backoffMultiplier; // Exponential backoff
-              } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                return;
-              }
-            }
+            long nextDelay = backoff;
+            log.info("Retrying in {}ms...", nextDelay);
+            Thread.sleep(nextDelay);
+            backoff *= backoffMultiplier;
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return;
           }
         }
+      }
+    }
 
-        if (stopRetries.get()) {
-          log.info("Retrying stopped due to server shutdown.");
-        } else {
-          log.error("Failed to connect to Elasticsearch after {} attempts.", maxRetries);
-        }
-      });
+    if (stopRetries.get()) {
+      log.info("Retrying stopped due to server shutdown.");
+    } else {
+      log.error("Failed to connect to OpenSearch after {} attempts.", maxRetries);
     }
   }
 
+
   private boolean isRetryableException(IOException e) {
     return e instanceof ConnectException || e instanceof UnknownHostException || e instanceof ConnectionClosedException;
-  }
-
-  private boolean isDataNode() {
-    return Boolean.parseBoolean(properties.getProperty("dataNode", "true"));
-  }
-
-  private String getClusterName() {
-    return properties.getProperty("clusterName", "mica");
   }
 
   private List<String> getTransportAddresses() {
     String addStr = properties.getProperty("transportAddresses", "").trim();
     return addStr.isEmpty() ? Lists.newArrayList("localhost:9200")
       : Stream.of(addStr.split(",")).map(String::trim).collect(toList());
-  }
-
-  private boolean isTransportClient() {
-    return Boolean.parseBoolean(properties.getProperty("transportClient", "false"));
-  }
-
-  private boolean isTransportSniff() {
-    return Boolean.parseBoolean(properties.getProperty("transportSniff", "false"));
-  }
-
-  private File getWorkFolder() {
-    return getServiceFolder(WORK_DIR_PROPERTY);
   }
 
   private File getInstallFolder() {
@@ -342,18 +357,10 @@ public class ESSearchEngineService implements SearchEngineService {
     return indexSettings;
   }
 
-  private Settings.Builder getSettings() {
-    File pluginWorkDir = new File(getWorkFolder(), properties.getProperty("es.version", ES_BRANCH));
-    Settings.Builder builder = Settings.builder() //
-      .put("path.home", getInstallFolder().getAbsolutePath()) //
-      .put("path.data", new File(pluginWorkDir, "data").getAbsolutePath()) //
-      .put("path.work", new File(pluginWorkDir, "work").getAbsolutePath());
-
-    File defaultSettings = new File(getInstallFolder(), ES_CONFIG_FILE);
+  private void loadIndexSettings() {
+    File defaultSettings = new File(getInstallFolder(), OPENSEARCH_CONFIG_FILE);
     if (defaultSettings.exists()) {
       try {
-        builder.loadFromPath(defaultSettings.toPath());
-
         Map<String, Object> defaultSettingsMap = yamlObjectMapper.readValue(defaultSettings,
           new TypeReference<Map<String, Object>>() {
           });
@@ -370,15 +377,6 @@ public class ESSearchEngineService implements SearchEngineService {
         log.error("Failed to load default settings {}", e);
       }
     }
-
-    String settings = properties.getProperty("settings", "");
-    if (!Strings.isNullOrEmpty(settings) && settings.indexOf(':') != -1) {
-      builder.loadFromSource(settings, XContentType.YAML);
-    }
-
-    builder.put("cluster.name", getClusterName());
-
-    return builder;
   }
 
   private int getIntProperty(String key, int defaultValue) {

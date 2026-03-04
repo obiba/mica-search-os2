@@ -12,7 +12,7 @@ package org.obiba.es.mica.results;
 
 import org.obiba.mica.spi.search.Searcher;
 
-import co.elastic.clients.elasticsearch._types.aggregations.RangeBucket;
+import org.opensearch.client.opensearch._types.aggregations.RangeBucket;
 
 import java.util.List;
 import java.util.stream.Collectors;

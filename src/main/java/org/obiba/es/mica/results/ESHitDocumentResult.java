@@ -10,10 +10,9 @@
 
 package org.obiba.es.mica.results;
 
-import org.elasticsearch.search.SearchHit;
 import org.obiba.mica.spi.search.Searcher;
 
-import co.elastic.clients.elasticsearch.core.search.Hit;
+import org.opensearch.client.opensearch.core.search.Hit;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

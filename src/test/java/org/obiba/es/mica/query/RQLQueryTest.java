@@ -10,7 +10,6 @@
 
 package org.obiba.es.mica.query;
 
-import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.junit.Ignore;
 import org.junit.Test;
 //import org.obiba.es.mica.support.TestElasticSearchClient;

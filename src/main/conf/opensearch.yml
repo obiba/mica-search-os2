@@ -1,9 +1,3 @@
-http.enabled: false
-node:
-    data: false
-    local: false
-    master: false
-discovery.zen.ping.multicast.enabled: false
 index:
     max_ngram_diff: 18
     max_result_window: 1000000

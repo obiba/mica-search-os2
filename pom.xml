@@ -10,10 +10,10 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.obiba.es</groupId>
-  <artifactId>mica-search-es8</artifactId>
+  <artifactId>mica-search-os2</artifactId>
   <packaging>jar</packaging>
-  <version>2.0-SNAPSHOT</version>
-  <name>mica-search-es8</name>
+  <version>1.0-SNAPSHOT</version>
+  <name>mica-search-os2</name>
   <url>http://obiba.org</url>
 
   <properties>
@@ -23,7 +23,7 @@
 
     <assertj-core.version>3.8.0</assertj-core.version>
     <easymock.version>5.2.0</easymock.version>
-    <elasticsearch.version>8.16.1</elasticsearch.version>
+    <opensearch.version>2.19.0</opensearch.version>
     <jna.version>4.1.0</jna.version>
     <junit.version>4.12</junit.version>
     <logback.version>1.5.13</logback.version>
@@ -33,7 +33,6 @@
     <json-smart.version>2.4.10</json-smart.version>
     <slf4j.version>1.7.21</slf4j.version>
     <jackson.version>2.18.2</jackson.version>
-    <opentelemetry-api.version>1.29.0</opentelemetry-api.version>
 
     <!-- maven plugins -->
     <github-release-plugin.version>1.6.0</github-release-plugin.version>
@@ -52,7 +51,7 @@
     <rpm-maven-plugin.version>2.1.4</rpm-maven-plugin.version>
 
     <install.dir>/usr/share</install.dir>
-    <package.name>mica-search-es8-dist-${project.version}</package.name>
+    <package.name>mica-search-os2-dist-${project.version}</package.name>
     <dist.location>${basedir}/target/${package.name}-dist/${package.name}</dist.location>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -83,22 +82,21 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch</groupId>
-      <artifactId>elasticsearch</artifactId>
-      <version>${elasticsearch.version}</version>
+      <groupId>org.opensearch.client</groupId>
+      <artifactId>opensearch-java</artifactId>
+      <version>${opensearch.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>co.elastic.clients</groupId>
-      <artifactId>elasticsearch-java</artifactId>
-      <version>${elasticsearch.version}</version>
+      <groupId>org.opensearch.client</groupId>
+      <artifactId>opensearch-rest-client</artifactId>
+      <version>${opensearch.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-api</artifactId>
-      <version>${opentelemetry-api.version}</version>
-      <scope>compile</scope>
+      <groupId>org.reactivestreams</groupId>
+      <artifactId>reactive-streams</artifactId>
+      <version>1.0.4</version>
     </dependency>
 
     <dependency>
@@ -176,11 +174,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>net.java.dev.jna</groupId>
-      <artifactId>jna</artifactId>
-      <version>${jna.version}</version>
-    </dependency>
 
   </dependencies>
 
@@ -426,20 +419,20 @@
   </distributionManagement>
 
   <scm>
-    <connection>scm:git:https://github.com/obiba/mica-search-es8.git</connection>
-    <developerConnection>scm:git:https://github.com/obiba/mica-search-es8.git</developerConnection>
-    <url>https://github.com/obiba/mica-search-es8</url>
-    <tag>mica-search-es8-1.0.x</tag>
+    <connection>scm:git:https://github.com/obiba/mica-search-os2.git</connection>
+    <developerConnection>scm:git:https://github.com/obiba/mica-search-os2.git</developerConnection>
+    <url>https://github.com/obiba/mica-search-os2</url>
+    <tag>mica-search-os2-1.0.x</tag>
   </scm>
 
   <issueManagement>
     <system>GitHub</system>
-    <url>https://github.com/obiba/mica-search-es8/issues</url>
+    <url>https://github.com/obiba/mica-search-os2/issues</url>
   </issueManagement>
 
   <ciManagement>
     <system>Travis</system>
-    <url>https://travis-ci.org/obiba/mica-search-es8</url>
+    <url>https://travis-ci.org/obiba/mica-search-os2</url>
   </ciManagement>
 
   <mailingLists>

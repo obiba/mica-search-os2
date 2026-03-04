@@ -10,18 +10,15 @@
 
 package org.obiba.es.mica.mapping;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
+
+
 import org.obiba.mica.spi.search.ConfigurationProvider;
 import org.obiba.mica.spi.search.Indexer;
 import org.obiba.mica.spi.search.SearchEngineService;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
+import org.opensearch.client.RestClient;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.stream.Stream;
 
 public class VariableIndexConfiguration extends AbstractIndexConfiguration {
@@ -33,35 +30,27 @@ public class VariableIndexConfiguration extends AbstractIndexConfiguration {
   @Override
   public void onIndexCreated(SearchEngineService searchEngineService, String indexName) {
     if (Indexer.PUBLISHED_VARIABLE_INDEX.equals(indexName)) {
-      setMappingProperties(getClient(searchEngineService), indexName);
+      setMappingProperties(getRestClient(searchEngineService), indexName);
     }
     if (Indexer.PUBLISHED_HVARIABLE_INDEX.equals(indexName)) {
-      setMappingProperties(getClient(searchEngineService), indexName);
+      setMappingProperties(getRestClient(searchEngineService), indexName);
     }
   }
 
-  private void setMappingProperties(ElasticsearchClient client, String indexName) {
+  private void setMappingProperties(RestClient restClient, String indexName) {
     try {
+      MappingBuilder harmonizedmapping = createMappingProperties(Indexer.HARMONIZED_VARIABLE_TYPE);
+      MappingBuilder defaultMapping = createMappingProperties(Indexer.VARIABLE_TYPE);
 
-      XContentBuilder harmonizedmapping = createMappingProperties(Indexer.HARMONIZED_VARIABLE_TYPE);
-      XContentBuilder defaultMapping = createMappingProperties(Indexer.VARIABLE_TYPE);
-
-      client
-          .indices()
-          .putMapping(PutMappingRequest
-              .of(r -> r.index(indexName).withJson(new StringReader(Strings.toString(harmonizedmapping)))));
-
-      client
-          .indices()
-          .putMapping(PutMappingRequest
-              .of(r -> r.index(indexName).withJson(new StringReader(Strings.toString(defaultMapping)))));
+      putMappingJson(restClient, indexName, harmonizedmapping.toString());
+      putMappingJson(restClient, indexName, defaultMapping.toString());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private XContentBuilder createMappingProperties(String type) throws IOException {
-    XContentBuilder mapping = XContentFactory.jsonBuilder().startObject();
+  private MappingBuilder createMappingProperties(String type) throws IOException {
+    MappingBuilder mapping = MappingBuilder.jsonBuilder().startObject();
     mapping.startArray("dynamic_templates").startObject().startObject("und").field("match", "und")
         .field("match_mapping_type", "string").startObject("mapping").field("type", "keyword")
         .endObject().endObject().endObject().endArray();

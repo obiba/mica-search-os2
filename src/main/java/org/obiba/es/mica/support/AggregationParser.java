@@ -15,11 +15,11 @@ import org.obiba.mica.spi.search.support.AggregationHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.AggregationRange;
-import co.elastic.clients.elasticsearch._types.aggregations.RangeAggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.StatsAggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregation;
+import org.opensearch.client.opensearch._types.aggregations.Aggregation;
+import org.opensearch.client.opensearch._types.aggregations.AggregationRange;
+import org.opensearch.client.opensearch._types.aggregations.RangeAggregation;
+import org.opensearch.client.opensearch._types.aggregations.StatsAggregation;
+import org.opensearch.client.opensearch._types.aggregations.TermsAggregation;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -120,11 +120,11 @@ public class AggregationParser {
 
               if (!"*".equals(values[0]) || !"*".equals(values[1])) {
                 if ("*".equals(values[0])) {
-                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.to(Double.valueOf(values[1]))));
+                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.to(values[1])));
                 } else if ("*".equals(values[1])) {
-                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.from(Double.valueOf(values[0]))));
+                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.from(values[0])));
                 } else {
-                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.from(Double.valueOf(values[0])).to(Double.valueOf(values[1]))));
+                  rangeAggregationBuilder.ranges(AggregationRange.of(a -> a.from(values[0]).to(values[1])));
                 }
               }
 

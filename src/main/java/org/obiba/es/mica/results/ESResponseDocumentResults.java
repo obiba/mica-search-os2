@@ -10,9 +10,9 @@
 
 package org.obiba.es.mica.results;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
+import org.opensearch.client.opensearch._types.aggregations.Aggregate;
+import org.opensearch.client.opensearch._types.aggregations.StringTermsBucket;
+import org.opensearch.client.opensearch.core.SearchResponse;
 import org.obiba.mica.spi.search.Searcher;
 
 import java.util.HashMap;
@@ -57,7 +57,7 @@ public class ESResponseDocumentResults implements Searcher.DocumentResults {
     if (aggregationKind.name() != "sterms")
       return new HashMap<>();
     return aggregation.sterms().buckets().array().stream()
-        .collect(Collectors.toMap(b -> b.key().stringValue(), StringTermsBucket::docCount));
+        .collect(Collectors.toMap(StringTermsBucket::key, StringTermsBucket::docCount));
   }
 
   @Override

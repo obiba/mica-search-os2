@@ -12,7 +12,7 @@ package org.obiba.es.mica.results;
 
 import org.obiba.mica.spi.search.Searcher;
 
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
+import org.opensearch.client.opensearch._types.aggregations.StringTermsBucket;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,7 +34,7 @@ public class ESDocumentTermsBucket implements Searcher.DocumentTermsBucket {
 
   @Override
   public String getKeyAsString() {
-    return bucket.key().stringValue();
+    return bucket.key();
   }
 
   @Override

@@ -10,19 +10,22 @@
 
 package org.obiba.es.mica;
 
-import org.elasticsearch.search.sort.SortBuilder;
 import org.obiba.mica.spi.search.support.Query;
 
 import java.util.List;
+import java.util.Map;
 
-public interface ESQuery extends Query {
+public interface OSQuery extends Query {
 
   boolean hasLimit();
 
-  co.elastic.clients.elasticsearch._types.query_dsl.Query getQueryBuilder();
+  org.opensearch.client.opensearch._types.query_dsl.Query getQueryBuilder();
 
   boolean hasSortBuilders();
 
-  List<SortBuilder> getSortBuilders();
+  /**
+   * Returns sort specifications as a list of field→order pairs ("Asc" or "Desc").
+   */
+  List<Map.Entry<String, String>> getSortBuilders();
 
 }
