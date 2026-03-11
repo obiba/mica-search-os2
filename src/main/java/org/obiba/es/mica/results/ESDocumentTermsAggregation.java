@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 OBiBa. All rights reserved.
+ * Copyright (c) 2026 OBiBa. All rights reserved.
  *
  * This program and the accompanying materials
  * are made available under the terms of the GNU Public License v3.0.
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * {@link Terms} aggregation wrapper.
+ * {@link org.opensearch.client.opensearch._types.aggregations.StringTermsAggregate} aggregation wrapper.
  */
 public class ESDocumentTermsAggregation implements Searcher.DocumentTermsAggregation {
   private final StringTermsAggregate terms;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 OBiBa. All rights reserved.
+ * Copyright (c) 2026 OBiBa. All rights reserved.
  *
  * This program and the accompanying materials
  * are made available under the terms of the GNU Public License v3.0.
@@ -17,6 +17,7 @@ import org.obiba.mica.spi.search.support.Query;
 
 import org.opensearch.client.opensearch._types.query_dsl.BoolQuery;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,7 +30,7 @@ public class AndQuery implements OSQuery {
   private final List<OSQuery> queries;
 
   public AndQuery(Query... queries) {
-    this.queries = Lists.newArrayList(queries).stream().filter(q -> !q.isEmpty())
+    this.queries = Arrays.stream(queries).filter(q -> !q.isEmpty())
         .map(q -> (OSQuery) q).collect(Collectors.toList());
   }
 

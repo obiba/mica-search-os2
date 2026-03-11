@@ -111,6 +111,41 @@ docker run -d \
 
 ---
 
+## Integration Tests
+
+Integration tests verify the plugin against a real OpenSearch 2.x instance. They are not part of the standard build (`mvn install`) and must be run explicitly with the `it` profile.
+
+### Requirements
+
+- Docker must be installed and running
+
+### Run
+
+```bash
+mvn verify -Pit
+```
+
+This will automatically:
+
+1. Start an OpenSearch 2.x container on port `19200` (to avoid conflicts with any local instance)
+2. Run the integration tests (`ESIndexerIT`, `ESSearcherIT`)
+3. Stop and remove the container
+
+### What is tested
+
+- **`ESIndexerIT`** — indexing a single document, bulk indexing, dropping an index, deleting a document
+- **`ESSearcherIT`** — finding all documents, filtering by term, filtering by range, counting, pagination and sorting
+
+### Customizing the port
+
+The default port `19200` can be overridden:
+
+```bash
+mvn verify -Pit -Dit.opensearch.port=29200
+```
+
+---
+
 ## Mailing list
 
 Have a question? Ask on our mailing list!

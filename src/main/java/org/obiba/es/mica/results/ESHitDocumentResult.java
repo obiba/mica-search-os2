@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 OBiBa. All rights reserved.
+ * Copyright (c) 2026 OBiBa. All rights reserved.
  *
  * This program and the accompanying materials
  * are made available under the terms of the GNU Public License v3.0.
@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * {@link SearchHit} wrapper.
+ * {@link org.opensearch.client.opensearch.core.search.Hit} wrapper.
  */
 public class ESHitDocumentResult implements Searcher.DocumentResult {
   private final Hit<ObjectNode> hit;

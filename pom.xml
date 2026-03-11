@@ -1,5 +1,5 @@
 <!--
-  ~ Copyright (c) 2024 OBiBa. All rights reserved.
+  ~ Copyright (c) 2026 OBiBa. All rights reserved.
   ~
   ~ This program and the accompanying materials
   ~ are made available under the terms of the GNU Public License v3.0.
@@ -27,6 +27,7 @@
     <jna.version>4.1.0</jna.version>
     <junit.version>4.12</junit.version>
     <logback.version>1.5.13</logback.version>
+    <logback-access.version>2.0.1</logback-access.version>
     <mica.version>6.4-SNAPSHOT</mica.version>
     <obiba-commons.version>5.0.0</obiba-commons.version>
     <rql-parser.version>0.3.3-obiba</rql-parser.version>
@@ -48,7 +49,10 @@
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-source-plugin.version>2.2.1</maven-source-plugin.version>
     <maven-surefire-plugin.version>2.16</maven-surefire-plugin.version>
-    <rpm-maven-plugin.version>2.1.4</rpm-maven-plugin.version>
+    <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
+    <it.opensearch.port>19200</it.opensearch.port>
+    <it.opensearch.container>mica-search-os2-it</it.opensearch.container>
+<rpm-maven-plugin.version>2.1.4</rpm-maven-plugin.version>
 
     <install.dir>/usr/share</install.dir>
     <package.name>mica-search-os2-dist-${project.version}</package.name>
@@ -97,6 +101,12 @@
       <groupId>org.reactivestreams</groupId>
       <artifactId>reactive-streams</artifactId>
       <version>1.0.4</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
@@ -162,9 +172,9 @@
       <version>${logback.version}</version>
     </dependency>
     <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-access</artifactId>
-      <version>${logback.version}</version>
+      <groupId>ch.qos.logback.access</groupId>
+      <artifactId>common</artifactId>
+      <version>${logback-access.version}</version>
     </dependency>
 
     <dependency>
@@ -173,6 +183,7 @@
       <version>${easymock.version}</version>
       <scope>test</scope>
     </dependency>
+
 
 
   </dependencies>
@@ -186,6 +197,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler-plugin.version}</version>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
@@ -259,7 +271,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.9</version>
+        <version>3.6.3</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
@@ -267,7 +279,8 @@
               <goal>jar</goal>
             </goals>
             <configuration>
-              <additionalparam>-Xdoclint:none</additionalparam>
+              <doclint>none</doclint>
+              <source>21</source>
             </configuration>
           </execution>
         </executions>
@@ -341,6 +354,79 @@
 
   <profiles>
     <profile>
+      <id>it</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>${maven-antrun-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>start-opensearch</id>
+                <phase>pre-integration-test</phase>
+                <goals><goal>run</goal></goals>
+                <configuration>
+                  <target>
+                    <exec executable="docker" failonerror="false">
+                      <arg value="rm"/><arg value="-f"/><arg value="${it.opensearch.container}"/>
+                    </exec>
+                    <exec executable="docker" failonerror="true">
+                      <arg value="run"/>
+                      <arg value="-d"/>
+                      <arg value="--name"/><arg value="${it.opensearch.container}"/>
+                      <arg value="-p"/><arg value="${it.opensearch.port}:9200"/>
+                      <arg value="-e"/><arg value="discovery.type=single-node"/>
+                      <arg value="-e"/><arg value="DISABLE_SECURITY_PLUGIN=true"/>
+                      <arg value="-e"/><arg value="DISABLE_INSTALL_DEMO_CONFIG=true"/>
+                      <arg value="opensearchproject/opensearch:2.19.0"/>
+                    </exec>
+                    <waitfor maxwait="90" maxwaitunit="second" checkevery="2" checkeveryunit="second">
+                      <http url="http://localhost:${it.opensearch.port}"/>
+                    </waitfor>
+                  </target>
+                </configuration>
+              </execution>
+              <execution>
+                <id>stop-opensearch</id>
+                <phase>post-integration-test</phase>
+                <goals><goal>run</goal></goals>
+                <configuration>
+                  <target>
+                    <exec executable="docker" failonerror="false">
+                      <arg value="stop"/><arg value="${it.opensearch.container}"/>
+                    </exec>
+                    <exec executable="docker" failonerror="false">
+                      <arg value="rm"/><arg value="${it.opensearch.container}"/>
+                    </exec>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>${maven-failsafe-plugin.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <systemPropertyVariables>
+                <it.opensearch.port>${it.opensearch.port}</it.opensearch.port>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
       <!-- A profile for the builds performed by the continuous integration server -->
       <id>release</id>
       <build>
@@ -403,11 +489,7 @@
     </repository>
   </repositories>
 
-  <prerequisites>
-    <maven>3.0.0</maven>
-  </prerequisites>
-
-  <distributionManagement>
+<distributionManagement>
     <repository>
       <id>obiba-release-local</id>
       <url>https://obiba.jfrog.io/obiba/libs-release-local</url>
