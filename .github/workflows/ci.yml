@@ -41,11 +41,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Set up Maven settings
-        run: |
-          mkdir -p ~/.m2
-          cp .travis.settings.xml ~/.m2/settings.xml
-
       - name: Deploy Snapshot
         if: github.ref == 'refs/heads/snapshot' && github.event_name == 'push'
         run: mvn -U -B deploy
