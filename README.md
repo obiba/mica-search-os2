@@ -2,7 +2,7 @@
 
 [Mica](https://github.com/obiba/mica2) is OBiBa's web data portal application server.
 
-`mica-search-os2` is Mica's search plugin for OpenSearch 2.x. It is a drop-in replacement for `mica-search-es8`, compatible with Mica >= 6.0.
+`mica-search-os2` is Mica's search plugin for OpenSearch 2.x. It is a drop-in replacement for `mica-search-es8`, compatible with Mica >= 6.3.
 
 ## Installation
 
