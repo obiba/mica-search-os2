@@ -19,7 +19,7 @@ This tells Mica which search plugin to load. Without this setting, Mica will not
 
 ### 2. Configure the plugin
 
-Edit `$MICA_HOME/plugins/mica-search-os2-<version>/plugin.properties` and set the OpenSearch cluster address:
+Edit `$MICA_HOME/plugins/mica-search-os2/plugin.properties` and set the OpenSearch cluster address:
 
 ```properties
 # Comma-separated list of OpenSearch nodes (host:port). Default is localhost:9200.
