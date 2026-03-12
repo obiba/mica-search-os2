@@ -28,7 +28,7 @@ transportAddresses=localhost:9200
 
 ### 3. Configure index settings (optional)
 
-The plugin reads `$MICA_HOME/plugins/mica-search-os2-<version>/opensearch.yml` for index-level settings such as custom analyzers. Only `index:` settings are relevant here — node and discovery settings are not applicable since the plugin connects to an external cluster over HTTP.
+The plugin reads `$MICA_HOME/plugins/mica-search-os2/opensearch.yml` for index-level settings such as custom analyzers. Only `index:` settings are relevant here — node and discovery settings are not applicable since the plugin connects to an external cluster over HTTP.
 
 Example `opensearch.yml`:
 
