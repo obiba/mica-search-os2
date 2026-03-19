@@ -12,7 +12,7 @@
   <groupId>org.obiba.es</groupId>
   <artifactId>mica-search-os2</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.0</version>
+  <version>1.0-SNAPSHOT</version>
   <name>mica-search-os2</name>
   <url>http://obiba.org</url>
 
@@ -504,7 +504,7 @@
     <connection>scm:git:https://github.com/obiba/mica-search-os2.git</connection>
     <developerConnection>scm:git:https://github.com/obiba/mica-search-os2.git</developerConnection>
     <url>https://github.com/obiba/mica-search-os2</url>
-    <tag>1.0.0</tag>
+    <tag>mica-search-os2-1.0.x</tag>
   </scm>
 
   <issueManagement>
