@@ -52,7 +52,7 @@ jobs:
         env:
           ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
           ARTIFACTORY_PWD: ${{ secrets.ARTIFACTORY_PWD }}
-          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_ACCESS_TOKEN }}
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
