@@ -12,7 +12,7 @@
   <groupId>org.obiba.es</groupId>
   <artifactId>mica-search-os2</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>mica-search-os2</name>
   <url>http://obiba.org</url>
 
@@ -369,20 +369,20 @@
                 <configuration>
                   <target>
                     <exec executable="docker" failonerror="false">
-                      <arg value="rm"/><arg value="-f"/><arg value="${it.opensearch.container}"/>
+                      <arg value="rm" /><arg value="-f" /><arg value="${it.opensearch.container}" />
                     </exec>
                     <exec executable="docker" failonerror="true">
-                      <arg value="run"/>
-                      <arg value="-d"/>
-                      <arg value="--name"/><arg value="${it.opensearch.container}"/>
-                      <arg value="-p"/><arg value="${it.opensearch.port}:9200"/>
-                      <arg value="-e"/><arg value="discovery.type=single-node"/>
-                      <arg value="-e"/><arg value="DISABLE_SECURITY_PLUGIN=true"/>
-                      <arg value="-e"/><arg value="DISABLE_INSTALL_DEMO_CONFIG=true"/>
-                      <arg value="opensearchproject/opensearch:2.19.0"/>
+                      <arg value="run" />
+                      <arg value="-d" />
+                      <arg value="--name" /><arg value="${it.opensearch.container}" />
+                      <arg value="-p" /><arg value="${it.opensearch.port}:9200" />
+                      <arg value="-e" /><arg value="discovery.type=single-node" />
+                      <arg value="-e" /><arg value="DISABLE_SECURITY_PLUGIN=true" />
+                      <arg value="-e" /><arg value="DISABLE_INSTALL_DEMO_CONFIG=true" />
+                      <arg value="opensearchproject/opensearch:2.19.0" />
                     </exec>
                     <waitfor maxwait="90" maxwaitunit="second" checkevery="2" checkeveryunit="second">
-                      <http url="http://localhost:${it.opensearch.port}"/>
+                      <http url="http://localhost:${it.opensearch.port}" />
                     </waitfor>
                   </target>
                 </configuration>
@@ -394,10 +394,10 @@
                 <configuration>
                   <target>
                     <exec executable="docker" failonerror="false">
-                      <arg value="stop"/><arg value="${it.opensearch.container}"/>
+                      <arg value="stop" /><arg value="${it.opensearch.container}" />
                     </exec>
                     <exec executable="docker" failonerror="false">
-                      <arg value="rm"/><arg value="${it.opensearch.container}"/>
+                      <arg value="rm" /><arg value="${it.opensearch.container}" />
                     </exec>
                   </target>
                 </configuration>
@@ -504,7 +504,7 @@
     <connection>scm:git:https://github.com/obiba/mica-search-os2.git</connection>
     <developerConnection>scm:git:https://github.com/obiba/mica-search-os2.git</developerConnection>
     <url>https://github.com/obiba/mica-search-os2</url>
-    <tag>mica-search-os2-1.0.x</tag>
+    <tag>1.0.0</tag>
   </scm>
 
   <issueManagement>
