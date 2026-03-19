@@ -28,8 +28,8 @@
     <junit.version>4.12</junit.version>
     <logback.version>1.5.13</logback.version>
     <logback-access.version>2.0.1</logback-access.version>
-    <mica.version>6.4-SNAPSHOT</mica.version>
-    <obiba-commons.version>5.0.0</obiba-commons.version>
+    <mica.version>6.3.0</mica.version>
+    <obiba-commons.version>5.1.1</obiba-commons.version>
     <rql-parser.version>0.3.3-obiba</rql-parser.version>
     <json-smart.version>2.4.10</json-smart.version>
     <slf4j.version>1.7.21</slf4j.version>
@@ -140,7 +140,7 @@
       <type>jar</type>
     </dependency>
 
-    <dependency>  
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
       <version>${slf4j.version}</version>
