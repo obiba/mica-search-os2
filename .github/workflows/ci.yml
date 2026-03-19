@@ -46,20 +46,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Deploy Snapshot
-        if: github.ref == 'refs/heads/snapshot' && github.event_name == 'push'
-        run: mvn -U -B deploy
-        env:
-          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
-          ARTIFACTORY_PWD: ${{ secrets.ARTIFACTORY_PWD }}
-
-      - name: Deploy Release
-        if: startsWith(github.ref, 'refs/tags/')
-        run: mvn -B -Prelease deploy
-        env:
-          ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
-          ARTIFACTORY_PWD: ${{ secrets.ARTIFACTORY_PWD }}
-
       - name: Build
         if: github.ref != 'refs/heads/snapshot' && !startsWith(github.ref, 'refs/tags/')
         run: mvn -U -B install
