@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.OpenSearchException;
@@ -50,6 +51,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.obiba.mica.spi.search.QueryScope.AGGREGATION;
@@ -133,12 +136,7 @@ public class ESSearcher implements Searcher {
       List<SortOptions> sortOptions = new ArrayList<>();
 
       if (!query.isEmpty()) {
-        for (Map.Entry<String, String> sort : ((OSQuery) query).getSortBuilders()) {
-          String fieldName = sort.getKey();
-          String order = sort.getValue();
-          sortOptions.add(new SortOptions.Builder().field(field -> field.field(fieldName)
-              .order(org.opensearch.client.opensearch._types.SortOrder.valueOf(order))).build());
-        }
+        sortOptions.addAll(toSortOptions(((OSQuery) query).getSortBuilders(), sortableFields(indexName, type)));
       } else {
         sortOptions.add(new SortOptions.Builder()
             .score(score -> score.order(org.opensearch.client.opensearch._types.SortOrder.Desc)).build());
@@ -361,12 +359,7 @@ public class ESSearcher implements Searcher {
         List<SortOptions> sortOptions = new ArrayList<>();
 
         if (query.hasSortBuilders()) {
-          for (Map.Entry<String, String> sort : query.getSortBuilders()) {
-            String fieldName = sort.getKey();
-            String order = sort.getValue();
-            sortOptions.add(new SortOptions.Builder().field(field -> field.field(fieldName)
-                .order(org.opensearch.client.opensearch._types.SortOrder.valueOf(order))).build());
-          }
+          sortOptions.addAll(toSortOptions(query.getSortBuilders(), sortableFields(indexName, type)));
         } else {
           sortOptions.add(new SortOptions.Builder()
               .score(score -> score.order(org.opensearch.client.opensearch._types.SortOrder.Desc)).build());
@@ -418,6 +411,34 @@ public class ESSearcher implements Searcher {
 
       return new ESResponseCountResults(response);
     });
+  }
+
+  /**
+   * Translate the sort specifications. A field with the case-insensitive sort sub-field in the searched index is
+   * sorted on it, then on the field itself so that values differing only by case or accents keep a stable order.
+   *
+   * @param sortable sortable field predicate, fetched only when a field (other than _score) is sorted
+   */
+  static List<SortOptions> toSortOptions(List<Map.Entry<String, String>> sorts,
+                                         Supplier<Predicate<String>> sortable) {
+    List<SortOptions> sortOptions = new ArrayList<>();
+    for (Map.Entry<String, String> sort : sorts) {
+      String fieldName = sort.getKey();
+      org.opensearch.client.opensearch._types.SortOrder order =
+          org.opensearch.client.opensearch._types.SortOrder.valueOf(sort.getValue());
+      if (!"_score".equals(fieldName) && sortable.get().test(fieldName))
+        sortOptions.add(SortOptions.of(s -> s.field(f -> f.field(fieldName + ".sort").order(order))));
+      sortOptions.add(SortOptions.of(s -> s.field(f -> f.field(fieldName).order(order))));
+    }
+    return sortOptions;
+  }
+
+  /**
+   * The sortable fields of the index mapping, fetched on first use only (a request to OpenSearch).
+   */
+  private Supplier<Predicate<String>> sortableFields(String indexName, String type) {
+    return Suppliers.memoize(() -> esSearchService.getIndexer().getIndexfieldMapping(indexName, type)
+        instanceof ESIndexer.IndexFieldMappingImpl mapping ? mapping::isSortable : f -> false);
   }
 
   /**

@@ -379,6 +379,13 @@ public class ESSearchEngineService implements SearchEngineService {
     }
   }
 
+  /**
+   * Whether sorting uses the case-insensitive sort sub-fields of the index mapping (default true).
+   */
+  boolean isCaseInsensitiveSort() {
+    return properties == null || Boolean.parseBoolean(properties.getProperty("sort.caseInsensitive", "true"));
+  }
+
   private int getIntProperty(String key, int defaultValue) {
     try {
       return Integer.parseInt(properties.getProperty(key, String.valueOf(defaultValue)));

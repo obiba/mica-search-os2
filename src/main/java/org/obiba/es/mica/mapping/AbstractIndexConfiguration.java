@@ -50,6 +50,9 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
 
   private static final String LANGUAGE_TAG_UNDETERMINED = "und";
 
+  // top-level document fields that get the case-insensitive sort sub-field
+  private static final List<String> SORTABLE = List.of("acronym", "name");
+
   private final ConfigurationProvider configurationProvider;
 
   AbstractIndexConfiguration(ConfigurationProvider configurationProvider) {
@@ -104,6 +107,10 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
   }
 
   protected void createLocalizedMappingWithAnalyzers(MappingBuilder mapping, String name) {
+    createLocalizedMappingWithAnalyzers(mapping, name, false);
+  }
+
+  protected void createLocalizedMappingWithAnalyzers(MappingBuilder mapping, String name, boolean sortable) {
     try {
       mapping.startObject(name);
       mapping.startObject("properties");
@@ -111,7 +118,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
           LANGUAGE_TAG_UNDETERMINED)).forEach(locale -> {
             try {
               mapping.startObject(locale);
-              createMappingWithAnalyzers(mapping, locale);
+              createMappingWithAnalyzers(mapping, locale, sortable);
               mapping.endObject();
             } catch (IOException e) {
               log.error("Failed to create localized mappings: '{}'", e);
@@ -137,16 +144,20 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
   }
 
   protected void createMappingWithAndWithoutAnalyzer(MappingBuilder mapping, String name) {
+    createMappingWithAndWithoutAnalyzer(mapping, name, false);
+  }
+
+  protected void createMappingWithAndWithoutAnalyzer(MappingBuilder mapping, String name, boolean sortable) {
     try {
       mapping.startObject(name);
-      createMappingWithAnalyzers(mapping, name);
+      createMappingWithAnalyzers(mapping, name, sortable);
       mapping.endObject();
     } catch (IOException e) {
       log.error("Failed to create localized mappings: '{}'", e);
     }
   }
 
-  protected void createMappingWithAnalyzers(MappingBuilder mapping, String name) throws IOException {
+  protected void createMappingWithAnalyzers(MappingBuilder mapping, String name, boolean sortable) throws IOException {
     mapping
         .field("type", "keyword")
         .startObject("fields")
@@ -155,8 +166,16 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
         .field("type", "text")
         .field("analyzer", "mica_index_analyzer")
         .field("search_analyzer", "mica_search_analyzer")
-        .endObject()
         .endObject();
+    if (sortable) {
+      // case and accent insensitive sort, see ESIndexer.IndexFieldMappingImpl#isSortable
+      mapping.field("sort")
+          .startObject()
+          .field("type", "keyword")
+          .field("normalizer", "lowercase_normalizer")
+          .endObject();
+    }
+    mapping.endObject();
   }
 
   protected void appendMembershipProperties(MappingBuilder mapping) throws IOException {
@@ -194,18 +213,18 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
     mapping.endObject().endArray();
   }
 
-  private void createSchemaMapping(MappingBuilder mapping, SchemaNode schema) throws IOException {
+  private void createSchemaMapping(MappingBuilder mapping, SchemaNode schema, boolean root) throws IOException {
     for (SchemaNode node : schema.getChildren()) {
       if (node.getVocabulary() != null) {
         Vocabulary v = node.getVocabulary();
         if (TRUE.equals(v.getAttributeValue(LOCALIZED))) {
-          createLocalizedMappingWithAnalyzers(mapping, node.getName());
+          createLocalizedMappingWithAnalyzers(mapping, node.getName(), root && SORTABLE.contains(node.getName()));
         } else if (v.hasTerms() || TRUE.equals(v.getAttributeValue(STATIC))) {
           createMappingWithoutAnalyzer(mapping, node.getName(), v.getAttributeValue(TYPE));
         }
       } else {
         mapping.startObject(node.getName()).startObject("properties");
-        createSchemaMapping(mapping, node);
+        createSchemaMapping(mapping, node, false);
         mapping.endObject().endObject();
       }
     }
@@ -259,7 +278,7 @@ public abstract class AbstractIndexConfiguration implements Indexer.IndexConfigu
         }
       });
 
-      createSchemaMapping(mapping, root);
+      createSchemaMapping(mapping, root, true);
     }
   }
 

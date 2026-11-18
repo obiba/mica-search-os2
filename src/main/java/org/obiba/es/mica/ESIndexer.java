@@ -269,9 +269,10 @@ public class ESIndexer implements Indexer {
   }
 
   @Override
-  public IndexFieldMapping getIndexfieldMapping(String indexName, String type) {
+  public IndexFieldMappingImpl getIndexfieldMapping(String indexName, String type) {
     return esSearchService.withPluginClassLoader(() ->
-      new IndexFieldMappingImpl(hasIndex(indexName) ? getContext(indexName, type) : null)
+      new IndexFieldMappingImpl(hasIndex(indexName) ? getContext(indexName, type) : null,
+          esSearchService.isCaseInsensitiveSort())
     );
   }
 
@@ -284,6 +285,7 @@ public class ESIndexer implements Indexer {
       GetMappingResponse result = getClient().indices().getMapping(GetMappingRequest.of(r -> r.index(indexName)));
       Map<String, IndexMappingRecord> mappings = result.result();
       IndexMappingRecord record = mappings.get(indexName);
+      if (record == null) return null; // e.g. an alias, the mapping is keyed by the concrete index name
 
       Map<String, Property> mappingProperties = record.mappings().properties();
 
@@ -397,12 +399,30 @@ public class ESIndexer implements Indexer {
   }
 
 
-  private static class IndexFieldMappingImpl implements IndexFieldMapping {
+  static class IndexFieldMappingImpl implements IndexFieldMapping {
 
     private final ReadContext context;
 
-    IndexFieldMappingImpl(ReadContext ctx) {
+    private final boolean caseInsensitiveSort;
+
+    IndexFieldMappingImpl(ReadContext ctx, boolean caseInsensitiveSort) {
       this.context = ctx;
+      this.caseInsensitiveSort = caseInsensitiveSort;
+    }
+
+    /**
+     * Whether case-insensitive sorting is enabled and the field has the "sort" sub-field in the index mapping.
+     */
+    boolean isSortable(String fieldName) {
+      if (!caseInsensitiveSort || context == null || fieldName == null || fieldName.isEmpty()) return false;
+      // walk the exact field path: objects nest their fields in "properties", sub-fields are in "fields"
+      Object node = Map.of("properties", context.json());
+      for (String segment : fieldName.split("\\.")) {
+        node = node instanceof Map<?, ?> map && map.get("properties") instanceof Map<?, ?> properties
+            ? properties.get(segment) : null;
+      }
+      return node instanceof Map<?, ?> map && map.get("fields") instanceof Map<?, ?> fields
+          && fields.containsKey("sort");
     }
 
     @Override
