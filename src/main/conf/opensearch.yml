@@ -25,3 +25,7 @@ index:
             mica_char_group_tokenizer:
                 type: char_group
                 tokenize_on_chars: ["whitespace", "-", "_"]
+        normalizer:
+            lowercase_normalizer:
+                type: custom
+                filter: [lowercase, asciifolding]

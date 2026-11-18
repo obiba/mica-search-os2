@@ -34,6 +34,11 @@ class ESSearchEngineServiceTestDouble extends ESSearchEngineService {
   }
 
   @Override
+  public org.obiba.mica.spi.search.Indexer getIndexer() {
+    return new ESIndexer(this);
+  }
+
+  @Override
   public ObjectMapper getObjectMapper() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
