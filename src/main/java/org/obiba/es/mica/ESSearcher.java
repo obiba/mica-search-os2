@@ -823,7 +823,9 @@ public class ESSearcher implements Searcher {
     BoolQuery.Builder excludedFilter = new BoolQuery.Builder();
     excludes.forEach(excludedFilter::should);
 
-    return BoolQuery.of(q -> q.must(includedFilter.build()._toQuery(), excludedFilter.build()._toQuery()))._toQuery();
+    return BoolQuery.of(q -> q
+        .must(includedFilter.build()._toQuery())
+        .mustNot(excludedFilter.build()._toQuery()))._toQuery();
   }
 
   /**
